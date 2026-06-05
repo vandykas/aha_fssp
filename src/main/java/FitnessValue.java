@@ -1,0 +1,1 @@
+public record FitnessValue(int makespan, int totalFlowTime) {}
