@@ -11,7 +11,7 @@ public class FSS {
         this.machineCount = machineCount;
     }
 
-    public FitnessValue calculateFitnessFunction(List<Integer> jobSchedule) {
+    public FitnessValue calculateFitness(List<Integer> jobSchedule) {
         int[][] completionTime = new int[jobCount][machineCount];
         completionTime[0][0] = processingTime[jobSchedule.getFirst()][0];
         for (int i = 1; i < machineCount; i++) {
