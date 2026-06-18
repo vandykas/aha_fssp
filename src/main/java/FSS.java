@@ -4,16 +4,16 @@ public class FSS {
     private final int[][] processingTime;
     private final int jobCount;
     private final int machineCount;
+    private int[][] completionTime;
 
-    public FSS(int[][] processingTime, int jobCount, int machineCount, ArrayList<Integer> jobSchedule) {
+    public FSS(int[][] processingTime, int jobCount, int machineCount) {
         this.processingTime = processingTime;
         this.jobCount = jobCount;
         this.machineCount = machineCount;
-        this.calculateCompletionTime(jobSchedule);
     }
 
-    private void calculateCompletionTime(ArrayList<Integer> jobSchedule) {
-        int[][] completionTime = new int[jobCount][machineCount];
+    public void calculateCompletionTime(ArrayList<Integer> jobSchedule) {
+        this.completionTime = new int[jobCount][machineCount];
         completionTime[0][0] = processingTime[jobSchedule.getFirst()][0];
         for (int i = 1; i < machineCount; i++) {
             completionTime[0][i] = completionTime[0][i - 1] + processingTime[jobSchedule.getFirst()][i];
@@ -28,14 +28,14 @@ public class FSS {
         }
     }
     
-    public int calculateMakespan(int[][] completionTime) {
-        return completionTime[jobCount - 1][machineCount - 1];
+    public int calculateMakespan() {
+        return this.completionTime[jobCount - 1][machineCount - 1];
     }
 
-    public int calculateTotalFlowTime(int[][] completionTime) {
+    public int calculateTotalFlowTime() {
         int totalFlowTime = 0;
         for (int i = 0; i < jobCount; i++) {
-            totalFlowTime += completionTime[i][machineCount - 1];
+            totalFlowTime += this.completionTime[i][machineCount - 1];
         }
         return totalFlowTime;
     }
