@@ -102,12 +102,47 @@ public class AHA {
     }
 
     private Hummingbird territorialForaging(Hummingbird hummingbird, FoodSource foodSource) {
-        // TODO: Buat algoritma 
-        return null;
+        // TODO: Buat algoritma
+        // foodSource (target) tidak dipakai di sini, karena territorial foraging
+        // hanya bergantung pada posisi diri sendiri (vi = xi + b*D*xi), tidak ada
+        // sumber lain yang dituju — berbeda dengan guided foraging.
+
+        // Tentukan jenis terbang secara acak (1/3 masing-masing)
+        double rFlight = rand.nextDouble();
+        int jumlahSwap;
+        if (rFlight < 1.0 / 3.0) {
+            // Axial: swap 1 posisi
+            jumlahSwap = 1;
+        } else if (rFlight < 2.0 / 3.0) {
+            // Diagonal: swap 2 hingga (n/2) posisi
+            jumlahSwap = 2 + rand.nextInt(Math.max(1, jobCount / 2 - 1));
+        } else {
+            // Omnidirectional: swap banyak posisi
+            jumlahSwap = jobCount / 2 + rand.nextInt(
+                    Math.max(1, jobCount - jobCount / 2));
+        }
+
+        ArrayList<Integer> candidateSchedule = (ArrayList<Integer>) hummingbird.getFoodSource().getJobSchedule()
+                .clone();
+
+        // Perturbasi lokal acak pada urutan job milik sendiri.
+        // Tidak ada "posisi target" untuk dituju (beda dari guided foraging),
+        // jadi swap dilakukan antar posisi acak di dalam jadwalnya sendiri.
+        for (int s = 0; s < jumlahSwap; s++) {
+            int pos1 = rand.nextInt(jobCount);
+            int pos2 = rand.nextInt(jobCount);
+            if (pos1 != pos2) {
+                int temp = candidateSchedule.get(pos1);
+                candidateSchedule.set(pos1, candidateSchedule.get(pos2));
+                candidateSchedule.set(pos2, temp);
+            }
+        }
+
+        return new Hummingbird(new FoodSource(candidateSchedule));
     }
 
     private Hummingbird migrationForaging(Hummingbird hummingbird, FoodSource foodSource) {
-        // TODO: Buat algoritma 
+        // TODO: Buat algoritma
         return null;
     }
 }
