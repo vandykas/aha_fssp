@@ -64,6 +64,6 @@ public class FoodSource implements Comparable<FoodSource> {
     }
 
     public double calculateFitness(int makespan, int minMakespan, int totalFlowTime, int minTotalFlowTime) {
-        return (double) (makespan - minMakespan) / minMakespan + (totalFlowTime - minTotalFlowTime) / minTotalFlowTime;
+        return (double) (makespan - minMakespan) / minMakespan + (double) (totalFlowTime - minTotalFlowTime) / minTotalFlowTime;
     }
 }
