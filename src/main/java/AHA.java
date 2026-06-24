@@ -3,6 +3,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Kelas utama Artificial Hummingbird Algorithm untuk memecahkan masalah
+ * Multi-Objective Flow Shop Scheduling Problem
+ * 
+ * Algoritma ini mensimulasikan perilaku pencarian makan burung kolibri melalui tiga fase utama:
+ * - pencarian terpandu, guided foraging, 
+ * - pencarian teritorial, territorial foraging,
+ * - pencarian migrasi, migration foraging
+ * 
+ * Karena FSSP adalah masalah diskrit, operasi matematis digantikan dengan operasi pertukaran (swap) elemen jadwal.
+ * 
+ * Sumber: https://img1.wsimg.com/blobby/go/e8abc963-7b19-40d6-a270-eed55d317dba/AHA.pdf 
+ * @author Axel, Alex, Vandyka, Keane
+ * 
+ */
 public class AHA {
     private FSS fss;
     private Random rand;
@@ -12,6 +27,15 @@ public class AHA {
     private int maxIter;
     private int jobCount;
 
+    /**
+     * constructor
+     *
+     * @param fss      objek FSS untuk menghitung fungsi objektif
+     * @param rand     objek random
+     * @param N        ukuran populasi (jumlah burung kolibri)
+     * @param maxIter  jumlah maksimum iterasi algoritma
+     * @param jobCount total jumlah pekerjaan yang dijadwalkan
+     */
     public AHA(FSS fss, Random rand, int N, int maxIter, int jobCount) {
         this.fss = fss;
         this.rand = rand;
@@ -22,6 +46,17 @@ public class AHA {
         this.population = new ArrayList<>();
     }
 
+    /**
+     * Menjalankan siklus evolusi utama dari algoritma AHA
+     * 
+     * Mencakup inisialisasi populasi, 
+     * iterasi untuk guided atau territorial foraging
+     * berdasarkan probabilitas acak, serta migration foraging secara periodik
+     *
+     * @return Hummingbird yang membawa solusi foodsource terbaik 
+     * setelah seluruh iterasi selesai
+     * 
+     */
     public Hummingbird run() {
         initializePopulation();
         initializeVisitTable();
@@ -32,31 +67,35 @@ public class AHA {
                 double prob = this.rand.nextDouble();
                 if (prob <= 0.5) {
                     int target = findTarget(i);
-                    Hummingbird newHummingbird = guidedForaging(population.get(i), population.get(target).getFoodSource());
+                    Hummingbird newHummingbird = guidedForaging(population.get(i),
+                            population.get(target).getFoodSource());
                     evaluate(newHummingbird);
-                    
-                    boolean isForagingSuccess = (population.get(i).getFoodSource().compareTo(newHummingbird.getFoodSource()) > 0);
+
+                    boolean isForagingSuccess = (population.get(i).getFoodSource()
+                            .compareTo(newHummingbird.getFoodSource()) > 0);
                     updateVisitTableGuidedForaging(i, target, isForagingSuccess);
                     if (isForagingSuccess) {
                         population.set(i, newHummingbird);
                     }
-                }
-                else {
+                } else {
                     Hummingbird newHummingbird = territorialForaging(population.get(i));
                     evaluate(newHummingbird);
 
-                    boolean isForagingSuccess = (population.get(i).getFoodSource().compareTo(newHummingbird.getFoodSource()) > 0);
+                    boolean isForagingSuccess = (population.get(i).getFoodSource()
+                            .compareTo(newHummingbird.getFoodSource()) > 0);
                     updateVisitTableTerritorialForaging(i, isForagingSuccess);
                     if (isForagingSuccess) {
                         population.set(i, newHummingbird);
                     }
                 }
 
-                if (best.getFoodSource().compareTo(population.get(i).getFoodSource()) > 0){
+                // kandidat solusi terbaik global
+                if (best.getFoodSource().compareTo(population.get(i).getFoodSource()) > 0) {
                     best = new Hummingbird(population.get(i));
                 }
             }
 
+            // Eksekusi migrasi secara periodik
             if (t % (2 * N) == 0) {
                 migrationForaging();
             }
@@ -64,6 +103,9 @@ public class AHA {
         return best;
     }
 
+    /**
+     * Menghasilkan populasi awal secara acak dan langsung mengevaluasi fungsi objektifnya.
+     */
     private void initializePopulation() {
         for (int i = 0; i < N; i++) {
             Hummingbird hummingbird = new Hummingbird(new FoodSource(rand, jobCount));
@@ -72,6 +114,13 @@ public class AHA {
         }
     }
 
+    /**
+     * Mengatur nilai awal matriks tabel kunjungan.
+     * 
+     * Diagonal utama (i == j) diatur ke -1 karena burung tidak mengunjungi sumber 
+     * makanannya sendiri dalam konteks target matriks. Nilai lainnya diatur ke 0.
+     * 
+     */
     private void initializeVisitTable() {
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
@@ -80,6 +129,13 @@ public class AHA {
         }
     }
 
+    /**
+     * Menentukan target sumber makanan berikutnya
+     *
+     * @param currHummingBird indeks burung kolibri saat ini
+     * 
+     * @return indeks target sumber makanan yang sudah paling lama tidak dikunjungi
+     */
     private int findTarget(int currHummingBird) {
         int timeLastVisited = visitTable[currHummingBird][0];
         int pickedFoodSource = 0;
@@ -87,17 +143,34 @@ public class AHA {
             if (visitTable[currHummingBird][i] > timeLastVisited) {
                 timeLastVisited = visitTable[currHummingBird][i];
                 pickedFoodSource = i;
-            } 
+            }
         }
         return pickedFoodSource;
     }
 
+    /**
+     * Mengevaluasi kandidat solusi dengan menghitung makespan dan total flow time
+     *
+     * @param hummingbird individu yang membawa sumber makanan (kandidat jadwal) yang akan dievaluasi
+     */
     private void evaluate(Hummingbird hummingbird) {
         fss.calculateCompletionTime(hummingbird.getFoodSource().getJobSchedule());
         hummingbird.getFoodSource().setMakespan(fss.calculateMakespan());
         hummingbird.getFoodSource().setTotalFlowTime(fss.calculateTotalFlowTime());
     }
 
+    /**
+     * Mensimulasikan fase pencarian makan terpandu (guided foraging)
+     * 
+     * Menghasilkan solusi baru dengan mendekatkan jadwal saat ini ke jadwal target melalui 
+     * mekanisme pertukaran posisi elemen (swap) pada titik yang berbeda
+     *
+     * @param hummingbird individu saat ini
+     * @param foodSource  sumber makanan target
+     * 
+     * @return individu baru hasil dari guided foraging
+     */
+    @SuppressWarnings("unchecked")
     private Hummingbird guidedForaging(Hummingbird hummingbird, FoodSource foodSource) {
         int swapCount = calculateSwapCount();
         ArrayList<Integer> source = (ArrayList<Integer>) hummingbird.getFoodSource().getJobSchedule().clone();
@@ -122,6 +195,17 @@ public class AHA {
         return new Hummingbird(new FoodSource(source));
     }
 
+    /**
+     * Mensimulasikan fase pencarian makan teritorial (territorial foraging)
+     * 
+     * Menghasilkan solusi baru di sekitar posisi saat ini melalui pertukaran posisi acak 
+     * (random swap) pada jadwal untuk mengeksplorasi area teritorial agen tersebut
+     *
+     * @param hummingbird agen saat ini yang akan mengeksplorasi teritorinya
+     * 
+     * @return individu baru hasil mutasi teritorial
+     */
+    @SuppressWarnings("unchecked")
     private Hummingbird territorialForaging(Hummingbird hummingbird) {
         int swapCount = calculateSwapCount();
         ArrayList<Integer> candidateSchedule = (ArrayList<Integer>) hummingbird.getFoodSource().getJobSchedule()
@@ -139,11 +223,18 @@ public class AHA {
         return new Hummingbird(new FoodSource(candidateSchedule));
     }
 
+    /**
+     * Mensimulasikan fase migrasi (migration foraging).
+     * 
+     * Agen dengan posisi terburuk di populasi akan diinisialisasi ulang secara acak 
+     * (bermigrasi ke sumber makanan baru yang jauh) untuk menghindari optimum lokal.
+     * 
+     */
     private void migrationForaging() {
         int worstIdx = 0;
         FoodSource worstFoodSource = population.get(0).getFoodSource();
         for (int i = 1; i < N; i++) {
-            if (worstFoodSource.compareTo(population.get(i).getFoodSource()) < 0) {// aaaaaaaaaaaaaa
+            if (worstFoodSource.compareTo(population.get(i).getFoodSource()) < 0) {
                 worstFoodSource = population.get(i).getFoodSource();
                 worstIdx = i;
             }
@@ -174,6 +265,13 @@ public class AHA {
         }
     }
 
+    /**
+     * Mengkalkulasi jumlah pertukaran (swap count) berdasarkan parameter penerbangan acak
+     * Jumlah swap mengontrol ukuran langkah (step size) pencarian diskrit berdasarkan 
+     * tiga kemungkinan probabilitas yang mensimulasikan pola penerbangan kolibri
+     *
+     * @return jumlah operasi swap yang akan dilakukan pada kandidat jadwal
+     */
     private int calculateSwapCount() {
         double rFlight = rand.nextDouble();
         int swapCount;
@@ -188,6 +286,12 @@ public class AHA {
         return swapCount;
     }
 
+    /**
+     * Memperbarui tabel kunjungan setelah fase territorial foraging
+     *
+     * @param i       indeks individu hummingbird saat ini
+     * @param success status apakah solusi baru lebih baik dari solusi sebelumnya
+     */
     private void updateVisitTableTerritorialForaging(int i, boolean success) {
         for (int j = 0; j < N; j++) {
             if (j == i)
@@ -211,6 +315,13 @@ public class AHA {
         }
     }
 
+    /**
+     * Memperbarui tabel kunjungan setelah fase guided foraging
+     *
+     * @param i       indeks individu hummingbird saat ini
+     * @param target  foodsource target yang ingin didatangi
+     * @param success status apakah solusi baru lebih baik dari solusi sebelumnya
+     */
     private void updateVisitTableGuidedForaging(int i, int target, boolean success) {
         for (int j = 0; j < N; j++) {
             if (j == i || j == target)
