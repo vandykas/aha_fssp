@@ -35,11 +35,11 @@ public class FoodSource implements Comparable<FoodSource> {
         int currTotalFlowTime = this.getTotalFlowTime();
         int otherTotalFlowTime = other.getTotalFlowTime();
         
-        double minMakespan = Math.min(otherMakespan, currMakespan);
-        double minTotalFlowTime = Math.min(otherTotalFlowTime, currTotalFlowTime);
+        int minMakespan = Math.min(otherMakespan, currMakespan);
+        int minTotalFlowTime = Math.min(otherTotalFlowTime, currTotalFlowTime);
 
-        double currFitness = (currMakespan - minMakespan) / minMakespan + (currTotalFlowTime - minTotalFlowTime) / minTotalFlowTime;
-        double otherFitness = (otherMakespan - minMakespan) / minMakespan + (otherTotalFlowTime - minTotalFlowTime) / minTotalFlowTime;
+        double currFitness = calculateFitness(currMakespan, minMakespan, currTotalFlowTime, minTotalFlowTime);
+        double otherFitness = calculateFitness(otherMakespan, minMakespan, otherTotalFlowTime, minTotalFlowTime);
         return Double.compare(currFitness, otherFitness);
     }
 
@@ -61,5 +61,9 @@ public class FoodSource implements Comparable<FoodSource> {
 
     public ArrayList<Integer> getJobSchedule() {
         return jobSchedule;
+    }
+
+    public double calculateFitness(int makespan, int minMakespan, int totalFlowTime, int minTotalFlowTime) {
+        return (double) (makespan - minMakespan) / minMakespan + (totalFlowTime - minTotalFlowTime) / minTotalFlowTime;
     }
 }

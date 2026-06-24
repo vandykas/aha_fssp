@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -12,17 +13,52 @@ public class AHA {
     private int jobCount;
 
     public AHA(FSS fss, Random rand, int N, int maxIter, int jobCount) {
+        this.fss = fss;
         this.rand = rand;
+        this.N = N;
+        this.maxIter = maxIter;
+        this.jobCount = jobCount;
         this.visitTable = new int[N][N];
         this.population = new ArrayList<>();
-        this.jobCount = jobCount;
     }
 
-    public void run() {
+    public Hummingbird run() {
         initializePopulation();
-        for (int i = 0; i < maxIter; i++) {
+        initializeVisitTable();
 
+        for (int t = 1; t <= maxIter; t++) {
+            for (int i = 0; i < N; i++) {
+                double prob = this.rand.nextDouble();
+                if (prob <= 0.5) {
+                    int target = findTarget(i);
+                    Hummingbird newHummingbird = guidedForaging(population.get(i), population.get(target).getFoodSource());
+                    
+                    //kalo lebih bagus, maka hummingbird gerak ke target
+                    boolean isForagingSuccess = (population.get(i).getFoodSource().compareTo(newHummingbird.getFoodSource()) > 0);
+                    updateVisitTableGuidedForaging(i, target, isForagingSuccess);
+                }
+                else {
+                    Hummingbird newHummingbird = territorialForaging(population.get(i));
+                    boolean isForagingSuccess = (population.get(i).getFoodSource().compareTo(newHummingbird.getFoodSource()) > 0);
+                    updateVisitTableTerritorialForaging(i, isForagingSuccess);
+                }
+            }
+            if (t % (2 * N) == 0) {
+                migrationForaging();
+            }
         }
+
+        FoodSource best = population.get(0).getFoodSource();
+        int index = 0; 
+        for(int i = 1; i<N; i++){
+            //cari yang terbaik dari hasil iterasi
+            if(best.compareTo(population.get(i).getFoodSource()) > 0){
+                best = population.get(i).getFoodSource();
+                index = i;
+            }
+        }
+
+        return population.get(index);
     }
 
     private void initializePopulation() {
@@ -33,116 +69,166 @@ public class AHA {
         }
     }
 
+    private void initializeVisitTable() {
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                visitTable[i][j] = (i == j) ? -1 : 0;
+            }
+        }
+    }
+
+    private int findTarget(int currHummingBird) {
+        int timeLastVisited = visitTable[currHummingBird][0];
+        int pickedFoodSource = 0;
+        for (int i = 1; i < N; i++) {
+            if (visitTable[currHummingBird][i] > timeLastVisited) {
+                timeLastVisited = visitTable[currHummingBird][i];
+                pickedFoodSource = i;
+            } 
+        }
+        return pickedFoodSource;
+    }
+
     private void evaluate(Hummingbird hummingbird) {
         fss.calculateCompletionTime(hummingbird.getFoodSource().getJobSchedule());
         hummingbird.getFoodSource().setMakespan(fss.calculateMakespan());
         hummingbird.getFoodSource().setTotalFlowTime(fss.calculateTotalFlowTime());
     }
 
-    private Hummingbird foraging(Hummingbird hummingbird, FoodSource foodSource) {
-        double prob = this.rand.nextDouble();
-        if (prob < 0.33)
-            return guidedForaging(hummingbird, foodSource);
-        if (prob < 0.67)
-            return territorialForaging(hummingbird, foodSource);
-        else
-            return migrationForaging(hummingbird, foodSource);
-    }
-
     private Hummingbird guidedForaging(Hummingbird hummingbird, FoodSource foodSource) {
-        // Tentukan jenis terbang secara acak (1/3 masing-masing)
-        double rFlight = rand.nextDouble();
-        int jumlahSwap;
-        if (rFlight < 1.0 / 3.0) {
-            // Axial: swap 1 posisi
-            jumlahSwap = 1;
-        } else if (rFlight < 2.0 / 3.0) {
-            // Diagonal: swap 2 hingga (n/2) posisi
-            jumlahSwap = 2 + rand.nextInt(Math.max(1, jobCount / 2 - 1));
-        } else {
-            // Omnidirectional: swap banyak posisi (mendekati target sepenuhnya)
-            jumlahSwap = jobCount / 2 + rand.nextInt(
-                    Math.max(1, jobCount - jobCount / 2));
-        }
-
+        int swapCount = calculateSwapCount();
         ArrayList<Integer> source = (ArrayList<Integer>) hummingbird.getFoodSource().getJobSchedule().clone();
         ArrayList<Integer> target = foodSource.getJobSchedule();
 
-        // Lakukan sejumlah swap agar mendekati x_i secara parsial
-        // (analogi: a * D * (x_i - x_tar) → bergerak sebagian ke arah x_i)
-        for (int s = 0; s < jumlahSwap; s++) {
-            // Pilih posisi acak yang berbeda antara urutan dan asal
-            List<Integer> posBeda = new ArrayList<>();
-            for (int k = 0; k < jobCount; k++) {
-                if (target.get(k) != source.get(k))
-                    posBeda.add(k);
+        for (int i = 0; i < swapCount; i++) {
+            List<Integer> diffPos = new ArrayList<>();
+            for (int j = 0; j < jobCount; j++) {
+                if (target.get(j) != source.get(j))
+                    diffPos.add(j);
             }
-            if (posBeda.isEmpty())
+            if (diffPos.isEmpty())
                 break;
 
-            // Pilih satu posisi beda secara acak, swap elemen agar mendekati asal
-            int pos = posBeda.get(rand.nextInt(posBeda.size()));
-            int nilaiTarget = source.get(pos);
-            // Cari di mana nilaiTarget berada di urutan saat ini
-            int posNilai = -1;
-            for (int k = 0; k < jobCount; k++) {
-                if (source.get(k) == nilaiTarget) {
-                    posNilai = k;
-                    break;
-                }
-            }
-            if (posNilai != -1 && posNilai != pos) {
-                int temp = source.get(pos);
-                source.set(pos, source.get(posNilai));
-                source.set(posNilai, temp);
-            }
+            int pos = diffPos.get(rand.nextInt(diffPos.size()));
+            int targetVal = target.get(pos);
+            int targetIdx = source.indexOf(targetVal);
+
+            Collections.swap(source, pos, targetIdx);
         }
 
         return new Hummingbird(new FoodSource(source));
     }
 
-    private Hummingbird territorialForaging(Hummingbird hummingbird, FoodSource foodSource) {
-        // TODO: Buat algoritma
-        // foodSource (target) tidak dipakai di sini, karena territorial foraging
-        // hanya bergantung pada posisi diri sendiri (vi = xi + b*D*xi), tidak ada
-        // sumber lain yang dituju — berbeda dengan guided foraging.
-
-        // Tentukan jenis terbang secara acak (1/3 masing-masing)
-        double rFlight = rand.nextDouble();
-        int jumlahSwap;
-        if (rFlight < 1.0 / 3.0) {
-            // Axial: swap 1 posisi
-            jumlahSwap = 1;
-        } else if (rFlight < 2.0 / 3.0) {
-            // Diagonal: swap 2 hingga (n/2) posisi
-            jumlahSwap = 2 + rand.nextInt(Math.max(1, jobCount / 2 - 1));
-        } else {
-            // Omnidirectional: swap banyak posisi
-            jumlahSwap = jobCount / 2 + rand.nextInt(
-                    Math.max(1, jobCount - jobCount / 2));
-        }
-
+    private Hummingbird territorialForaging(Hummingbird hummingbird) {
+        int swapCount = calculateSwapCount();
         ArrayList<Integer> candidateSchedule = (ArrayList<Integer>) hummingbird.getFoodSource().getJobSchedule()
                 .clone();
 
-        // Perturbasi lokal acak pada urutan job milik sendiri.
-        // Tidak ada "posisi target" untuk dituju (beda dari guided foraging),
-        // jadi swap dilakukan antar posisi acak di dalam jadwalnya sendiri.
-        for (int s = 0; s < jumlahSwap; s++) {
+        for (int i = 0; i < swapCount; i++) {
             int pos1 = rand.nextInt(jobCount);
             int pos2 = rand.nextInt(jobCount);
+
             if (pos1 != pos2) {
-                int temp = candidateSchedule.get(pos1);
-                candidateSchedule.set(pos1, candidateSchedule.get(pos2));
-                candidateSchedule.set(pos2, temp);
+                Collections.swap(candidateSchedule, pos1, pos2);
             }
         }
 
         return new Hummingbird(new FoodSource(candidateSchedule));
     }
 
-    private Hummingbird migrationForaging(Hummingbird hummingbird, FoodSource foodSource) {
-        // TODO: Buat algoritma
-        return null;
+    private void migrationForaging() {
+        int worstIdx = 0;
+        FoodSource worstFoodSource = population.get(0).getFoodSource();
+        for (int i = 1; i < N; i++) {
+            if (worstFoodSource.compareTo(population.get(i).getFoodSource()) < 0) {// aaaaaaaaaaaaaa
+                worstFoodSource = population.get(i).getFoodSource();
+                worstIdx = i;
+            }
+        }
+
+        FoodSource newFoodSource = new FoodSource(rand, jobCount);
+        Hummingbird newHummingbird = new Hummingbird(newFoodSource);
+        evaluate(newHummingbird);
+        population.set(worstIdx, newHummingbird);
+
+        for (int i = 0; i < N; i++) {
+            if (i == worstIdx)
+                continue;
+            visitTable[worstIdx][i]++;
+        }
+
+        for (int i = 0; i < N; i++) {
+            if (worstIdx == i)
+                continue;
+            int maxL = 0;
+            for (int j = 0; j < N; j++) {
+                if (i == j)
+                    continue;
+                if (visitTable[j][i] > maxL)
+                    maxL = visitTable[j][i];
+            }
+            visitTable[i][worstIdx] = maxL + 1;
+        }
+    }
+
+    private int calculateSwapCount() {
+        double rFlight = rand.nextDouble();
+        int swapCount;
+        if (rFlight < 1.0 / 3.0) {
+            swapCount = 1;
+        } else if (rFlight < 2.0 / 3.0) {
+            swapCount = 2 + rand.nextInt(Math.max(1, jobCount / 2 - 1));
+        } else {
+            swapCount = jobCount / 2 + rand.nextInt(
+                    Math.max(1, jobCount - jobCount / 2));
+        }
+        return swapCount;
+    }
+
+    private void updateVisitTableTerritorialForaging(int i, boolean success) {
+        for (int j = 0; j < N; j++) {
+            if (j == i)
+                continue;
+            visitTable[i][j]++;
+        }
+
+        if (success) {
+            for (int j = 0; j < N; j++) {
+                if (j == i)
+                    continue;
+                int maxL = 0;
+                for (int l = 0; l < N; l++) {
+                    if (l == j)
+                        continue;
+                    if (visitTable[j][l] > maxL)
+                        maxL = visitTable[j][l];
+                }
+                visitTable[j][i] = maxL + 1;
+            }
+        }
+    }
+
+    private void updateVisitTableGuidedForaging(int i, int target, boolean success) {
+        for (int j = 0; j < N; j++) {
+            if (j == i || j == target)
+                continue;
+            visitTable[i][j]++;
+        }
+        visitTable[i][target] = 0;
+
+        if (success) {
+            for (int j = 0; j < N; j++) {
+                if (j == i)
+                    continue;
+                int maxL = 0;
+                for (int l = 0; l < N; l++) {
+                    if (l == j)
+                        continue;
+                    if (visitTable[j][l] > maxL)
+                        maxL = visitTable[j][l];
+                }
+                visitTable[j][i] = maxL + 1;
+            }
+        }
     }
 }
