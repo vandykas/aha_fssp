@@ -49,7 +49,7 @@ public class Main {
                     try (BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile))) {
                         bw.write("population_size,makespan,total_flow_time\n");
                         for (int i = 10; i <= 100; i+=10) {
-                            AHA aha = new AHA(fss, rand, i, 1000, jobCount);
+                            AHA aha = new AHA(fss, rand, i, 250, jobCount);
                             Hummingbird best = aha.run();
 
                             ArrayList<Integer> sol = best.getFoodSource().getJobSchedule();

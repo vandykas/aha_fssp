@@ -13,6 +13,12 @@ public class FoodSource implements Comparable<FoodSource> {
         this.totalFlowTime = Integer.MAX_VALUE;
     }
 
+    public FoodSource(FoodSource other) {
+        this.jobSchedule = new ArrayList<>(other.jobSchedule);
+        this.makespan = other.makespan;
+        this.totalFlowTime = other.totalFlowTime;
+    }
+
     private void initializeJobSchedule(Random rand, int jobCount) {
         this.jobSchedule = new ArrayList<>();
         for (int i = 0; i < jobCount; i++) {

@@ -5,6 +5,10 @@ public class Hummingbird{
         this.foodSource = foodSource;
     }
 
+    public Hummingbird(Hummingbird other) {
+        this.foodSource = new FoodSource(other.foodSource);
+    }
+
     public FoodSource getFoodSource() {
         return foodSource;
     }

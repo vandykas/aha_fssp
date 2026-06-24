@@ -26,6 +26,7 @@ public class AHA {
         initializePopulation();
         initializeVisitTable();
 
+        Hummingbird best = new Hummingbird(population.get(0));
         for (int t = 1; t <= maxIter; t++) {
             for (int i = 0; i < N; i++) {
                 double prob = this.rand.nextDouble();
@@ -50,23 +51,17 @@ public class AHA {
                         population.set(i, newHummingbird);
                     }
                 }
+
+                if (best.getFoodSource().compareTo(population.get(i).getFoodSource()) > 0){
+                    best = new Hummingbird(population.get(i));
+                }
             }
+
             if (t % (2 * N) == 0) {
                 migrationForaging();
             }
         }
-
-        FoodSource best = population.get(0).getFoodSource();
-        int index = 0; 
-        for(int i = 1; i<N; i++){
-            //cari yang terbaik dari hasil iterasi
-            if(best.compareTo(population.get(i).getFoodSource()) > 0){
-                best = population.get(i).getFoodSource();
-                index = i;
-            }
-        }
-
-        return population.get(index);
+        return best;
     }
 
     private void initializePopulation() {
