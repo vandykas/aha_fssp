@@ -46,7 +46,7 @@ public class FSS {
             completionTime[0][i] = completionTime[0][i - 1] + processingTime[jobSchedule.getFirst()][i];
         }
 
-        for (int i = 1; i < jobCount; i++) {
+        for (int i = 1; i < jobSchedule.size(); i++) {
             int curJob = jobSchedule.get(i);
             completionTime[i][0] = completionTime[i - 1][0] + processingTime[curJob][0];
             for (int j = 1; j < machineCount; j++) {
